@@ -1,0 +1,443 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------------------------------------------------------------------------
+% Codificación, tipografía y geometría
+% ---------------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=2.4cm}
+\usepackage{microtype}
+\usepackage{setspace}
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\hyphenpenalty=10000
+\sloppy
+
+% ---------------------------------------------------------------------------
+% Tablas, código y enlaces
+% ---------------------------------------------------------------------------
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=azul,
+  urlcolor=azul,
+  citecolor=azul,
+  pdftitle={Proyecto de Aula Programación en Lenguaje Estadístico - Entrega 1},
+  pdfauthor={Steban Ibarra, Luiyi Brito y Astrid De Angel}
+}
+
+\definecolor{azul}{HTML}{1F4E79}
+\definecolor{gris}{HTML}{5A6B7B}
+
+\newcolumntype{L}{>{\RaggedRight\arraybackslash}X}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\pagestyle{plain}
+\renewcommand{\arraystretch}{1.08}
+
+\renewcommand{\tablename}{Tabla}
+\renewcommand{\contentsname}{Contenido}
+\renewcommand{\refname}{Referencias}
+\renewcommand{\appendixname}{Anexo}
+
+% ---------------------------------------------------------------------------
+% Portada
+% ---------------------------------------------------------------------------
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{1.2cm}
+  {\Large\bfseries Universidad Nacional de Colombia\par}
+  {\large Sede de La Paz\par}
+  \vspace{0.4cm}
+  {\color{azul}\rule{\textwidth}{1.2pt}\par}
+  \vspace{1.4cm}
+
+  {\Huge\bfseries Proyecto de Aula\par}
+  \vspace{0.25cm}
+  {\Huge\bfseries Programación en Lenguaje Estadístico\par}
+  \vspace{1.0cm}
+  {\Large\bfseries Entrega 1\par}
+  {\Large Formulación del problema y estructura del proyecto\par}
+  \vspace{0.7cm}
+  {\large Volumen vs. eficiencia en quarterbacks de la NFL\par}
+
+  \vspace{1.6cm}
+  \begin{tabular}{rl}
+    \textbf{Asignatura:} & Programación en Lenguajes Estadísticos\\
+    \textbf{Semestre:} & 2026-2\\
+    \textbf{Docente:} & Yoselin Nieto G.\\
+    \textbf{Integrantes:} & Steban Ibarra\\
+                         & Luiyi Brito\\
+                         & Astrid De Angel\\
+    \textbf{Fecha de entrega:} & miércoles 28 de octubre de 2026\\
+  \end{tabular}
+
+  \vfill
+  {\color{azul}\rule{\textwidth}{0.6pt}\par}
+  \vspace{0.4cm}
+  {\small Documento preparado para el Proyecto Integrador de la asignatura.\\
+  El código fuente, el cuaderno de Google Colab y el diccionario de datos se\\
+  adjuntan en la carpeta de la entrega.\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ---------------------------------------------------------------------------
+% Resumen ejecutivo
+% ---------------------------------------------------------------------------
+\section*{Resumen ejecutivo}
+\addcontentsline{toc}{section}{Resumen ejecutivo}
+
+Este documento presenta la primera entrega del proyecto de aula sobre el conjunto de datos \texttt{QBPassers2019.csv}, compuesto por las estadísticas de carrera de 50 quarterbacks de la NFL hasta la temporada 2019. El proyecto distingue dos dimensiones del desempeño: el \textbf{volumen acumulado} (partidos, intentos, pases completados y yardas) y la \textbf{eficiencia por intento} (porcentaje de pases completos, touchdowns e intercepciones por cada 100 intentos).
+
+La pregunta de investigación propone determinar en qué medida el \textit{rating} de carrera se explica por la eficiencia frente al volumen, controlando por la duración de la carrera, y qué perfiles de jugadores emergen al combinar ambas dimensiones. Para responderla se plantean cinco objetivos específicos que cubren el diagnóstico, la limpieza, la transformación, el análisis descriptivo y la comparación de modelos en R y Python.
+
+El diagnóstico inicial encontró un dataset de \textbf{50 filas y 15 columnas}, sin registros duplicados ni nombres repetidos. El único faltante relevante es \texttt{lastyear}, con \textbf{23 casos (46.0\%)}; se trata de un faltante \textbf{estructural}, porque identifica a los jugadores que seguían activos en 2019. Las tasas reportadas y el \textit{rating} son consistentes con sus fórmulas, con diferencias máximas inferiores a 0,05 atribuibles al redondeo. También se detectó que 6 valores de \texttt{tdsatt} y 6 de \texttt{interatt} usan ceros iniciales; R los lee como texto y Python como número, por lo que ambos entornos requieren una conversión explícita.
+
+Las principales decisiones para la Entrega 2 son: no imputar \texttt{lastyear} con medidas de tendencia central, crear las variables \texttt{activo\_2019}, \texttt{lastyear\_ajustado} y \texttt{years\_played}, normalizar el formato de las tasas y separar conceptualmente el volumen de la eficiencia antes de modelar. El proyecto es viable con los recursos disponibles y permite un análisis reproducible y cruzado en R y Google Colab.
+
+\textbf{Palabras clave:} NFL, quarterbacks, análisis exploratorio, eficiencia, volumen, reproducibilidad, R, Python.
+
+\newpage
+
+% ---------------------------------------------------------------------------
+\section{Contexto y problemática}
+% ---------------------------------------------------------------------------
+El conjunto de datos \texttt{QBPassers2019.csv} reúne estadísticas acumuladas de carrera de 50 mariscales de campo de la NFL. Cada fila representa la trayectoria completa de un jugador hasta 2019 e incluye conteos de producción (partidos, intentos, pases completados, yardas, intercepciones y touchdowns), tasas de eficiencia (porcentaje de pases completos, yardas por pase completado, intercepciones y touchdowns por cada 100 intentos) y una métrica compuesta, el \textit{rating} de pasador.
+
+Un proyecto previo sobre esta misma base analizó los touchdowns y el \textit{rating} mediante regresión lineal. Allí se observó que los touchdowns acumulados dependen sobre todo del volumen de producción y de la longevidad, mientras que el \textit{rating} se asocia principalmente con medidas de eficiencia como el porcentaje de pases completos y los touchdowns por intento. Esa tensión entre \textbf{cantidad} y \textbf{calidad por oportunidad} es el punto de partida de esta propuesta.
+
+La problemática analítica puede formularse así: las variables del dataset son totales de carrera, de modo que comparar quarterbacks por yardas, touchdowns o incluso por \textit{rating} sin separar el efecto de la duración de la carrera y del número de oportunidades puede confundir la \textbf{calidad} con la \textbf{acumulación}. Además, el \textit{rating} es una medida de eficiencia, pero se usa con frecuencia como un indicador global de calidad sin verificar cuánto depende del volumen. A esto se suma un faltante estructural en \texttt{lastyear} (jugadores activos en 2019) y una muestra pequeña de jugadores destacados, lo que exige decisiones de limpieza y de interpretación cuidadosamente documentadas.
+
+\textbf{Problemática.} Se requiere establecer, de forma reproducible y validada en dos entornos, qué dimensión del desempeño —volumen o eficiencia— explica mejor el \textit{rating} de carrera de estos quarterbacks, controlando por la longevidad, y caracterizar los perfiles que resultan de combinar ambas dimensiones. Sin ese análisis, las conclusiones sobre el rendimiento de los jugadores quedan expuestas a sesgos de acumulación y a comparaciones poco informativas.
+
+% ---------------------------------------------------------------------------
+\section{Pregunta de investigación}
+% ---------------------------------------------------------------------------
+\begin{center}
+\fbox{\parbox{0.94\textwidth}{
+\vspace{2pt}
+\textbf{Pregunta general.} ¿En qué medida el \textit{rating} de carrera de los quarterbacks del dataset \texttt{QBPassers2019} se explica por las métricas de eficiencia por intento (\texttt{compperc}, \texttt{tdsatt} e \texttt{interatt}) frente a las métricas de volumen acumulado (\texttt{games}, \texttt{attempts}, \texttt{completions} y \texttt{yards}), una vez controlado por la duración de la carrera (\texttt{years\_played}), y qué perfiles de desempeño emergen al combinar ambas dimensiones?
+\vspace{2pt}
+}}
+\end{center}
+
+La pregunta se descompone en tres subpreguntas:
+
+\begin{enumerate}
+  \item ¿Qué proporción de la variabilidad del \textit{rating} se asocia con las métricas de eficiencia y qué proporción con las de volumen?
+  \item ¿La asociación entre volumen y \textit{rating} persiste al controlar por la duración de la carrera y por la multicolinealidad entre los conteos acumulados?
+  \item ¿Es posible identificar perfiles diferenciados de quarterbacks —por ejemplo, altos acumuladores de volumen con eficiencia media, o jugadores de bajo volumen y alta eficiencia— y qué jugadores ejemplifican cada perfil?
+\end{enumerate}
+
+\textbf{Unidad de análisis:} la carrera profesional de un quarterback. \textbf{Población de referencia:} los 50 jugadores incluidos en el dataset. \textbf{Alcance:} análisis descriptivo, asociativo y de comparación de modelos; no se pretende establecer causalidad ni generalizar a todos los quarterbacks de la NFL.
+
+% ---------------------------------------------------------------------------
+\section{Objetivos}
+% ---------------------------------------------------------------------------
+\subsection*{Objetivo general}
+Determinar la contribución relativa del volumen acumulado y de la eficiencia por intento al \textit{rating} de carrera de los quarterbacks del dataset \texttt{QBPassers2019}, controlando por la duración de la carrera, y caracterizar los perfiles de desempeño resultantes mediante un flujo de trabajo reproducible y validado en R y Python.
+
+\subsection*{Objetivos específicos}
+\begin{enumerate}
+  \item Diagnosticar la calidad del dataset en R y Python: tipos de datos, valores faltantes, registros duplicados, rangos, consistencia interna y valores potencialmente atípicos.
+  \item Construir y documentar las variables derivadas necesarias para el análisis: \texttt{activo\_2019}, \texttt{lastyear\_ajustado}, \texttt{years\_played}, tramos de carrera y tasas por partido o por intento, preservando el archivo original sin modificaciones.
+  \item Describir la distribución de las variables y cuantificar las asociaciones bivariadas entre el \textit{rating}, las métricas de eficiencia y las de volumen, con visualizaciones equivalentes en R y Python.
+  \item Comparar modelos explicativos para el \textit{rating} —solo eficiencia, solo volumen y modelo combinado con control por longevidad—, evaluando ajuste, supuestos y multicolinealidad.
+  \item Identificar y caracterizar perfiles de desempeño a partir de la combinación de volumen y eficiencia, y verificar que las conclusiones sean consistentes entre las implementaciones de R y Python.
+\end{enumerate}
+
+% ---------------------------------------------------------------------------
+\section{Justificación}
+% ---------------------------------------------------------------------------
+\textbf{Valor analítico.} El proyecto aborda una pregunta sustantiva del análisis deportivo: distinguir si un jugador es valioso por producir mucho o por producir de forma eficiente. La respuesta no es trivial porque las métricas acumuladas están correlacionadas con la duración de la carrera y con el número de oportunidades. Separar ambas dimensiones permite interpretar el \textit{rating} con mayor rigor y evitar conclusiones que premian la longevidad como si fuera calidad.
+
+\textbf{Continuidad con el proyecto previo.} El informe anterior sobre \texttt{QBPassers2019} encontró evidencia de que los touchdowns responden al volumen y el \textit{rating} a la eficiencia. Esta entrega retoma ese hallazgo, pero lo convierte en una comparación formal y controlada por longevidad, e incorpora perfiles de jugadores y validación cruzada entre lenguajes. Así, el proyecto no repite el análisis anterior: lo profundiza y lo hace reproducible.
+
+\textbf{Valor metodológico.} La asignatura exige dominar R y Python de manera complementaria. El proyecto implementa el mismo diagnóstico y las mismas transformaciones en ambos entornos, compara salidas y documenta las diferencias de lectura (por ejemplo, el tratamiento de los ceros iniciales). Esto desarrolla competencias de programación reproducible, control de calidad y comunicación técnica.
+
+\textbf{Idoneidad del dataset.} El conjunto tiene 50 registros y 15 variables, con medidas de volumen y eficiencia que permiten correlaciones, agrupaciones, filtrados y modelos de regresión. Aunque la única variable cualitativa original es \texttt{name}, la Entrega 2 construirá variables categóricas derivadas (estado de carrera, tramos de longevidad, década de debut y perfiles volumen/eficiencia), con lo cual se habilitan agregaciones y comparaciones por grupos sin alterar la unidad de análisis.
+
+\textbf{Viabilidad.} Los datos son públicos y no contienen información sensible; las herramientas (RStudio, Google Colab, R y Python) están disponibles sin costo. El tamaño del dataset permite ejecutar todos los análisis en tiempos cortos y facilita la sustentación y la revisión del código.
+
+% ---------------------------------------------------------------------------
+\section{Hipótesis de trabajo}
+% ---------------------------------------------------------------------------
+\begin{enumerate}
+  \item \textbf{H1 (eficiencia):} las métricas de eficiencia por intento explican una mayor proporción de la variabilidad del \textit{rating} que las métricas de volumen acumulado.
+  \item \textbf{H2 (volumen y longevidad):} las métricas de volumen presentan alta colinealidad entre sí y su asociación con el \textit{rating} se debilita o desaparece al controlar por la duración de la carrera.
+  \item \textbf{H3 (perfiles):} es posible identificar al menos dos perfiles de desempeño —jugadores de alto volumen y eficiencia media, y jugadores de volumen moderado y alta eficiencia—, además de un grupo reducido que combina alto volumen con alta eficiencia.
+\end{enumerate}
+
+Estas hipótesis son orientadoras: el análisis exploratorio y los modelos podrán confirmarlas, matizarlas o refutarlas. El proyecto no asume causalidad; trabaja con asociaciones y con la comparación de especificaciones.
+
+% ---------------------------------------------------------------------------
+\section{Estructura del proyecto}
+% ---------------------------------------------------------------------------
+La entrega se organiza con la estructura estandarizada solicitada en la guía:
+
+\begin{verbatim}
+Entrega_1_QBPassers2019/
+|-- README.md
+|-- datos/
+|   |-- datos_crudos/
+|   |   `-- QBPassers2019.csv
+|   `-- datos_limpios/          (se completa en la Entrega 2)
+|-- scripts_R/
+|   `-- 01_diagnostico_inicial.R
+|-- notebooks_Python/
+|   `-- 01_Diagnostico_Inicial_QBPassers2019.ipynb
+`-- documentos/
+    |-- Entrega_1_Formulacion_Problema_y_Diagnostico.pdf
+    |-- Entrega_1_Formulacion_Problema_y_Diagnostico.tex
+    `-- Diccionario_Datos_QBPassers2019.md
+\end{verbatim}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.3cm}L@{}}
+\toprule
+\textbf{Archivo o carpeta} & \textbf{Propósito} \\
+\midrule
+\texttt{datos/datos\_crudos/} & Archivo original sin modificaciones; fuente única de verdad. \\
+\texttt{datos/datos\_limpios/} & Reservada para la base depurada y documentada de la Entrega 2. \\
+\texttt{scripts\_R/} & Script de diagnóstico en R con rutas relativas y resultados en consola. \\
+\texttt{notebooks\_Python/} & Cuaderno de Google Colab ejecutable, con montaje de Drive o carga directa. \\
+\texttt{documentos/} & Informe, código fuente del informe y diccionario de datos. \\
+\texttt{README.md} & Instrucciones de reproducción y descripción general. \\
+\bottomrule
+\end{tabularx}
+\caption{Contenido y función de la estructura del proyecto.}
+\label{tab:estructura}
+\end{table}
+
+\textbf{Reproducibilidad.} El script de R detecta la raíz del proyecto y usa rutas relativas; el cuaderno de Python monta Google Drive si está disponible, busca el archivo en rutas conocidas y, si no lo encuentra, ofrece la carga manual. Ambos leen el archivo original sin modificarlo y muestran los resultados del diagnóstico en pantalla. El archivo original nunca se sobrescribe.
+
+% ---------------------------------------------------------------------------
+\section{Dataset y diccionario de datos}
+% ---------------------------------------------------------------------------
+El dataset contiene 50 registros y 15 variables. La Tabla~\ref{tab:tipos} resume el tipo estadístico, el tipo detectado por R y por Python, y el número de faltantes de cada variable. La descripción completa, las unidades y las fórmulas se encuentran en \texttt{documentos/Diccionario\_Datos\_QBPassers2019.md}.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{@{}p{2.45cm}p{3.45cm}p{2.05cm}p{2.25cm}r@{}}
+\toprule
+\textbf{Variable} & \textbf{Tipo estadístico} & \textbf{R} & \textbf{Python} & \textbf{NA} \\
+\midrule
+\texttt{name} & Cualitativa nominal & character & object/str & 0 \\
+\texttt{firstyear} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{lastyear} & Cuantitativa discreta & numeric & float64 & 23 \\
+\texttt{games} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{attempts} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{completions} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{compperc} & Cuantitativa continua & numeric & float64 & 0 \\
+\texttt{avercomp} & Cuantitativa continua & numeric & float64 & 0 \\
+\texttt{yards} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{interceptions} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{interatt} & Cuantitativa continua & character & float64 & 0 \\
+\texttt{touchdowns} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{tdsatt} & Cuantitativa continua & character & float64 & 0 \\
+\texttt{longestPass} & Cuantitativa discreta & numeric & int64 & 0 \\
+\texttt{rating} & Cuantitativa continua & numeric & float64 & 0 \\
+\bottomrule
+\end{tabular}
+\caption{Tipos de datos detectados en R y Python.}
+\label{tab:tipos}
+\end{table}
+
+\textbf{Notas de medición.} Las tasas se expresan sobre 100 intentos o sobre 100 pases, según la variable. El \textit{rating} sigue la fórmula oficial de la NFL, que combina porcentaje de pases completos, yardas por intento, touchdowns por intento e intercepciones por intento, con cada componente acotado entre 0 y 2.375. El faltante de \texttt{lastyear} no es un error: el diccionario original indica que un año final vacío corresponde a un jugador activo en 2019. Esta distinción es central para no eliminar ni imputar registros de forma incorrecta.
+
+% ---------------------------------------------------------------------------
+\section{Metodología del diagnóstico inicial}
+% ---------------------------------------------------------------------------
+El diagnóstico se ejecutó con un flujo equivalente en R y Python. En ambos casos se conservó el archivo original y se realizaron las siguientes verificaciones:
+
+\begin{enumerate}
+  \item \textbf{Carga e inspección:} dimensiones, nombres de columnas, primeras y últimas filas, tipos detectados y valores únicos.
+  \item \textbf{Valores faltantes:} conteo y porcentaje por variable; distinción entre faltante estructural y faltante de captura.
+  \item \textbf{Duplicados:} filas repetidas y nombres de jugador repetidos.
+  \item \textbf{Consistencia:} recálculo de tasas y del \textit{rating} a partir de los conteos; verificación de que los pases completados no superen los intentos, de que los años no estén invertidos y de que los conteos sean positivos.
+  \item \textbf{Rangos y formato:} revisión de mínimos, máximos y valores con ceros iniciales; identificación de posibles valores atípicos para la fase siguiente.
+\end{enumerate}
+
+\subsection*{Implementación en R}
+El script \texttt{scripts\_R/01\_diagnostico\_inicial.R} usa \texttt{readr} para la lectura tipada y textual, \texttt{dplyr} para las transformaciones y \texttt{stringr} para revisar el formato de las tasas. Las verificaciones principales son:
+
+\begin{Verbatim}[fontsize=\small,frame=single,rulecolor=\color{gris},framesep=4mm]
+qb <- readr::read_csv("datos/datos_crudos/QBPassers2019.csv")
+dplyr::glimpse(qb)
+colSums(is.na(qb))
+sum(duplicated(qb))
+sum(duplicated(qb$name))
+\end{Verbatim}
+
+\texttt{readr} detectó \texttt{tdsatt} e \texttt{interatt} como \texttt{character} debido a los ceros iniciales; el script las convierte con \texttt{as.numeric()} antes de recalcular las tasas. Los resultados se imprimen en la consola y no se generan archivos auxiliares.
+
+\subsection*{Implementación en Python}
+El cuaderno \texttt{notebooks\_Python/01\_Diagnostico\_Inicial\_QBPassers2019.ipynb} usa \texttt{pandas} para la carga y la inspección. La rutina equivalente es:
+
+\begin{Verbatim}[fontsize=\small,frame=single,rulecolor=\color{gris},framesep=4mm]
+df = pd.read_csv(RUTA_DATOS)
+df.info()
+df.isna().sum()
+df.duplicated().sum()
+df.duplicated(subset=["name"]).sum()
+\end{Verbatim}
+
+\texttt{pandas} interpretó \texttt{tdsatt} e \texttt{interatt} como \texttt{float64}, de modo que la conversión explícita no fue necesaria para el cálculo, pero sí se documentó la diferencia. Las tablas se muestran en el cuaderno; no se generan figuras ni archivos externos.
+
+\subsection*{Validación cruzada}
+Ambos entornos reportaron las mismas dimensiones, el mismo número de faltantes, los mismos duplicados y las mismas diferencias máximas de consistencia. La única diferencia relevante fue el tipo detectado para las dos tasas con ceros iniciales, lo que confirma la utilidad de la lectura textual y de la conversión defensiva. Esta comparación se repetirá en cada entrega para asegurar que las transformaciones y los resultados sean equivalentes.
+
+% ---------------------------------------------------------------------------
+\section{Resultados del diagnóstico}
+% ---------------------------------------------------------------------------
+En el diagnóstico inicial se obtuvieron los tipos de datos mostrados en la Tabla~\ref{tab:tipos}. Hay 0 filas duplicadas en las 50 observaciones, como lo muestra la Tabla~\ref{tab:duplicados}, y 0 nombres duplicados en la variable \texttt{name}, como lo muestra la misma tabla. El único faltante se presenta en \texttt{lastyear}: 23 de 50 registros (46.0\%), como lo muestra la Tabla~\ref{tab:faltantes}.
+
+\subsection{Dimensiones y tipos de datos}
+El dataset tiene \textbf{50 filas y 15 columnas}. La inspección en Python reportó 1 variable de texto (\texttt{name}), 8 variables enteras y 6 variables decimales; \texttt{lastyear} aparece como decimal porque contiene valores faltantes, aunque su naturaleza es discreta (año). R leyó la mayoría de las columnas como \texttt{numeric} y detectó las dos tasas con ceros iniciales como texto. La Tabla~\ref{tab:tipos} resume la clasificación y los tipos detectados.
+
+\subsection{Valores faltantes}
+El único faltante está en \texttt{lastyear}: \textbf{23 de 50 registros (46.0\%)}, equivalentes al 3.07\% de la matriz de datos. No se observan faltantes en las demás variables. La interpretación es directa: los 23 jugadores sin año de retiro seguían activos en 2019. Imputar ese valor con la media o la mediana introduciría un año de retiro ficticio y distorsionaría cualquier análisis de longevidad.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{2.4cm}rrL@{}}
+\toprule
+\textbf{Variable} & \textbf{Faltantes} & \textbf{\%} & \textbf{Interpretación} \\
+\midrule
+\texttt{lastyear} & 23 & 46.0 & Jugadores activos en 2019; faltante estructural. \\
+\bottomrule
+\end{tabularx}
+\caption{Valores faltantes del dataset.}
+\label{tab:faltantes}
+\end{table}
+
+\textbf{Decisión.} El faltante se recodificará como información: se creará \texttt{activo\_2019} y se usará 2019 como año final ajustado para calcular \texttt{years\_played}. Esto preserva los 50 registros y evita un sesgo artificial en la longevidad. El balance es de 27 jugadores con año de retiro registrado y 23 activos en 2019.
+
+\subsection{Registros duplicados}
+No hay filas completamente duplicadas ni nombres de jugador repetidos. Los 50 registros corresponden a 50 nombres únicos, por lo que \texttt{name} funciona como identificador natural. Este resultado elimina la necesidad de deduplicar y permite usar el nombre como llave en las agregaciones y uniones de la Entrega 2.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{6.2cm}rL@{}}
+\toprule
+\textbf{Verificación} & \textbf{n} & \textbf{Lectura} \\
+\midrule
+Filas completamente duplicadas & 0 & Sin registros repetidos. \\
+Nombres de jugador duplicados & 0 & 50 nombres únicos. \\
+\bottomrule
+\end{tabularx}
+\caption{Verificación de registros duplicados.}
+\label{tab:duplicados}
+\end{table}
+
+\subsection{Consistencia interna}
+Se recalcularon las tasas y el \textit{rating} a partir de los conteos. La Tabla~\ref{tab:consistencia} muestra que todas las verificaciones se cumplen. Las diferencias máximas son inferiores a 0,05 y se explican por el redondeo del archivo original a una o dos cifras decimales; no hay evidencia de errores de captura en las fórmulas.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}Lrr@{}}
+\toprule
+\textbf{Verificación} & \textbf{Diferencia máxima} & \textbf{Resultado} \\
+\midrule
+\texttt{compperc} vs. \texttt{completions/attempts}$\times 100$ & 0.0488 & Cumple (redondeo) \\
+\texttt{avercomp} vs. \texttt{yards/completions} & 0.0492 & Cumple (redondeo) \\
+\texttt{tdsatt} vs. \texttt{touchdowns/attempts}$\times 100$ & 0.0050 & Cumple (redondeo) \\
+\texttt{interatt} vs. \texttt{interceptions/attempts}$\times 100$ & 0.0050 & Cumple (redondeo) \\
+\texttt{rating} vs. fórmula oficial de la NFL & 0.0464 & Cumple (redondeo) \\
+\texttt{completions} $\leq$ \texttt{attempts} & --- & Cumple en 50/50 \\
+\texttt{firstyear} $\leq$ \texttt{lastyear} & --- & Cumple en 27/27 con dato \\
+Conteos de volumen positivos & --- & Cumple en 50/50 \\
+\texttt{longestPass} entre 0 y 100 yardas & --- & Cumple en 50/50 \\
+\bottomrule
+\end{tabularx}
+\caption{Verificaciones de consistencia interna del dataset.}
+\label{tab:consistencia}
+\end{table}
+
+También se identificaron 6 valores de \texttt{tdsatt} y 6 de \texttt{interatt} con cero inicial; son inconsistencias de formato, no de valor. El rango temporal va de 1969 a 2016 en \texttt{firstyear} y de 1979 a 2019 en \texttt{lastyear}. Al ajustar el año final de los jugadores activos a 2019, la duración de carrera va de 4 a 20 años, con una media de 11.8 años.
+
+\subsection{Síntesis de calidad}
+\begin{itemize}
+  \item \textbf{Fortalezas:} dataset completo en sus variables principales, sin duplicados, con fórmulas internamente consistentes y rangos plausibles.
+  \item \textbf{Desafío principal:} el faltante estructural de \texttt{lastyear} y la naturaleza acumulada de las variables de volumen.
+  \item \textbf{Limitaciones:} la muestra es pequeña (50 casos) y no aleatoria; los jugadores incluidos son casos destacados, por lo que las conclusiones se limitan a este conjunto. El dataset original es casi totalmente numérico; las variables cualitativas para agrupaciones deberán derivarse.
+\end{itemize}
+
+% ---------------------------------------------------------------------------
+\section{Decisiones para la Entrega 2}
+% ---------------------------------------------------------------------------
+Con base en el diagnóstico, se adoptan las siguientes decisiones:
+
+\begin{enumerate}
+  \item \textbf{No imputar \texttt{lastyear}.} El faltante se recodifica como \texttt{activo\_2019 = TRUE} y se calcula \texttt{lastyear\_ajustado = 2019} para los activos. Así se preserva la información y se evita un sesgo artificial en la longevidad.
+  \item \textbf{Conservar el archivo original.} La base limpia se escribirá en \texttt{datos/datos\_limpios/} sin sobrescribir \texttt{datos\_crudos/}.
+  \item \textbf{Normalizar las tasas.} Se convertirán \texttt{tdsatt} e \texttt{interatt} a numérico y se eliminarán los ceros iniciales de la representación, documentando la transformación.
+  \item \textbf{Crear variables derivadas:} \texttt{activo\_2019}, \texttt{lastyear\_ajustado}, \texttt{years\_played}, \texttt{tier\_carrera} (corta, media, larga), tasas por partido y un indicador de perfil volumen/eficiencia.
+  \item \textbf{Separar dimensiones.} El análisis descriptivo y los modelos se organizarán en tres bloques: eficiencia, volumen y combinado con control por longevidad. Se revisará la correlación entre predictores y se calcularán indicadores de multicolinealidad antes de interpretar coeficientes.
+  \item \textbf{Análisis de perfiles.} Se usarán cuadrantes respecto a las medianas de volumen y eficiencia y, si la estructura lo permite, un agrupamiento no supervisado (k-medias o jerárquico) con validación de la solución. Los perfiles se describirán con jugadores representativos y con contexto deportivo.
+  \item \textbf{Validación cruzada.} Cada tabla y figura se replicará en R y Python; se compararán los valores y se documentarán las diferencias de implementación. Las visualizaciones se distribuirán según la guía: \texttt{ggplot2} para distribuciones y gráficos editoriales en R; \texttt{seaborn} y \texttt{Plotly} para mapas de calor y exploración interactiva en Python.
+\end{enumerate}
+
+% ---------------------------------------------------------------------------
+\section{Conclusiones}
+% ---------------------------------------------------------------------------
+El diagnóstico confirma que el dataset es apto para el proyecto: tiene la profundidad analítica suficiente para comparar volumen y eficiencia, no presenta duplicados y sus fórmulas son consistentes. El principal desafío no es un error de captura, sino un faltante estructural que debe tratarse como información y una estructura de datos acumulada que exige controlar por longevidad.
+
+La pregunta de investigación y los objetivos propuestos permiten ir más allá de una descripción superficial: separan dos dimensiones del rendimiento, comparan modelos, identifican perfiles y validan los resultados en R y Python. La entrega deja además una base reproducible —carpetas, scripts, cuaderno, diccionario e informe— sobre la cual se puede construir la limpieza, el análisis exploratorio y el informe final.
+
+% ---------------------------------------------------------------------------
+\section*{Referencias}
+\addcontentsline{toc}{section}{Referencias}
+\begin{itemize}
+  \item Universidad Nacional de Colombia. (2026). \textit{Guía del Proyecto Integrador: Análisis de Datos y Programación Reproducible en R y Google Colab (Python)}. Asignatura Programación en Lenguajes Estadísticos, semestre 2026-2.
+  \item Ibarra Luque, S. D. (s. f.). \textit{Exploración de variables explicativas de touchdowns y rating en quarterbacks de la NFL}. Informe previo del proyecto \texttt{QBPassers2019}. Universidad Nacional de Colombia, Sede de La Paz.
+  \item National Football League. (s. f.). \textit{Passer rating} [fórmula oficial de la NFL].
+  \item Pandas Development Team. (2025). \textit{pandas: Powerful data structures for data analysis in Python}. Documentación oficial.
+\end{itemize}
+
+\appendix
+\section{Evidencias y trazabilidad}
+Los resultados del diagnóstico se pueden reproducir con los siguientes archivos:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}L@{}}
+\toprule
+\textbf{Evidencia} & \textbf{Contenido} \\
+\midrule
+Datos crudos & \path{datos/datos_crudos/QBPassers2019.csv}, archivo original sin modificaciones. \\
+Script de R & \path{scripts_R/01_diagnostico_inicial.R}, diagnóstico con rutas relativas y resultados en consola. \\
+Cuaderno de Python & \path{notebooks_Python/01_Diagnostico_Inicial_QBPassers2019.ipynb}, carga, tipos, faltantes y duplicados. \\
+Diccionario & \path{documentos/Diccionario_Datos_QBPassers2019.md}, descripción de variables, unidades y fórmulas. \\
+Informe & \path{documentos/Entrega_1_Formulacion_Problema_y_Diagnostico.pdf}, informe de la Entrega 1. \\
+\bottomrule
+\end{tabularx}
+\caption{Archivos de evidencia incluidos en la entrega.}
+\label{tab:evidencias}
+\end{table}
+
+\section{Declaración de uso de inteligencia artificial}
+Para esta entrega se utilizó un asistente de IA como apoyo en la organización de la carpeta, la redacción preliminar del informe y la revisión de estilo del código. Todas las rutinas fueron ejecutadas, verificadas y ajustadas por los integrantes. Los resultados numéricos reportados provienen directamente del dataset y de la ejecución de los scripts y el cuaderno incluidos. La responsabilidad sobre el contenido, la interpretación y la sustentación es de los autores.
+
+\end{document}
